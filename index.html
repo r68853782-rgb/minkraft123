@@ -1,0 +1,624 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniCraft Multiplayer</title>
+
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #151b22;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+header {
+  padding: 14px;
+  background: #263b29;
+  font-size: 23px;
+  font-weight: bold;
+  color: #8cff83;
+}
+
+.panel {
+  background: #222d38;
+  padding: 12px;
+}
+
+input, button {
+  padding: 11px;
+  margin: 4px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input {
+  width: 190px;
+  background: #fff;
+}
+
+button {
+  background: #42a843;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:active { transform: scale(.96); }
+
+#status {
+  color: #ffdf70;
+  margin: 8px;
+  font-size: 13px;
+}
+
+#myid {
+  color: #7fff8c;
+  font-weight: bold;
+  word-break: break-all;
+}
+
+.game {
+  padding: 10px;
+}
+
+canvas {
+  width: 100%;
+  max-width: 900px;
+  background: #80c9f0;
+  border: 4px solid #526b48;
+  border-radius: 5px;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+
+.controls {
+  margin: 10px auto;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.controls button {
+  min-width: 55px;
+  min-height: 45px;
+  font-size: 19px;
+  background: #465b6d;
+}
+
+.info {
+  color: #c6d5df;
+  font-size: 12px;
+  padding: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<header>⛏ MINICRAFT MULTIPLAYER</header>
+
+<div class="panel">
+  <div>
+    <button onclick="hostGame()">CREATE WORLD</button>
+  </div>
+
+  <p>YOUR PLAYER ID:</p>
+  <div id="myid">Not Connected</div>
+
+  <hr>
+
+  <input id="room" placeholder="Enter Friend's Player ID">
+  <button onclick="joinGame()">JOIN WORLD</button>
+
+  <div id="status">Create a world or join your friend.</div>
+  <div id="count">Players: 0</div>
+</div>
+
+<div class="game">
+  <canvas id="game" width="800" height="500"></canvas>
+
+  <div class="controls">
+    <button onclick="move(0,-1)">⬆</button>
+    <button onclick="move(-1,0)">⬅</button>
+    <button onclick="move(0,1)">⬇</button>
+    <button onclick="move(1,0)">➡</button>
+  </div>
+
+  <div class="controls">
+    <button onclick="selected='grass'">🌱 Grass</button>
+    <button onclick="selected='dirt'">🟫 Dirt</button>
+    <button onclick="selected='stone'">🪨 Stone</button>
+    <button onclick="selected='wood'">🪵 Wood</button>
+  </div>
+
+  <p class="info">
+    PC: WASD / Arrow Keys = Move |
+    Left Click = Place Block |
+    Right Click = Destroy Block
+    <br>
+    Mobile: Use direction buttons and tap blocks.
+  </p>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const TILE = 32;
+const COLS = 25;
+const ROWS = 15;
+
+let peer = null;
+let connections = {};
+let players = {};
+let blocks = {};
+let myId = null;
+let isHost = false;
+let selected = "grass";
+
+const colors = {
+  grass: "#55ae43",
+  dirt: "#93603c",
+  stone: "#888888",
+  wood: "#9a6734"
+};
+
+function setStatus(msg) {
+  document.getElementById("status").textContent = msg;
+}
+
+function makeWorld() {
+  blocks = {};
+
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (y > 9) blocks[`${x},${y}`] = "dirt";
+      else if (y === 9) blocks[`${x},${y}`] = "grass";
+      else if (Math.random() < 0.035 && y > 2) {
+        blocks[`${x},${y}`] = "wood";
+      }
+    }
+  }
+}
+
+function hostGame() {
+  if (peer) peer.destroy();
+
+  isHost = true;
+  connections = {};
+  players = {};
+  makeWorld();
+
+  peer = new Peer();
+
+  peer.on("open", id => {
+    myId = id;
+    players[id] = {
+      x: 5,
+      y: 7,
+      color: "#ff4040",
+      name: "Host"
+    };
+
+    document.getElementById("myid").textContent = id;
+    setStatus("World created! Share your Player ID with friends.");
+    updateCount();
+  });
+
+  peer.on("connection", conn => {
+    connections[conn.peer] = conn;
+
+    conn.on("open", () => {
+      players[conn.peer] = {
+        x: 7,
+        y: 7,
+        color: randomColor(),
+        name: "Player"
+      };
+
+      conn.send({
+        type: "init",
+        players: players,
+        blocks: blocks
+      });
+
+      broadcast({
+        type: "players",
+        players: players
+      }, conn.peer);
+
+      updateCount();
+      setStatus("A new player joined!");
+    });
+
+    conn.on("data", data => handleHostData(conn, data));
+
+    conn.on("close", () => {
+      delete players[conn.peer];
+      delete connections[conn.peer];
+
+      broadcast({
+        type: "players",
+        players: players
+      });
+
+      updateCount();
+    });
+  });
+
+  peer.on("error", err => setStatus("Connection error: " + err.type));
+}
+
+function joinGame() {
+  const hostId = document.getElementById("room").value.trim();
+
+  if (!hostId) {
+    setStatus("Please enter a Player ID.");
+    return;
+  }
+
+  if (peer) peer.destroy();
+
+  isHost = false;
+  connections = {};
+  players = {};
+
+  peer = new Peer();
+
+  peer.on("open", id => {
+    myId = id;
+    document.getElementById("myid").textContent = id;
+
+    const conn = peer.connect(hostId, {
+      reliable: true
+    });
+
+    connections[hostId] = conn;
+
+    conn.on("open", () => {
+      setStatus("Connected! Loading world...");
+    });
+
+    conn.on("data", data => handleGuestData(data));
+
+    conn.on("close", () => {
+      setStatus("Disconnected from host.");
+    });
+  });
+
+  peer.on("error", err => {
+    setStatus("Connection error: " + err.type);
+  });
+}
+
+function handleHostData(conn, data) {
+  if (!data || !data.type) return;
+
+  if (data.type === "position") {
+    const id = conn.peer;
+
+    if (!players[id]) return;
+
+    players[id].x = clamp(data.x, 0, COLS - 1);
+    players[id].y = clamp(data.y, 0, ROWS - 1);
+
+    broadcast({
+      type: "position",
+      id: id,
+      x: players[id].x,
+      y: players[id].y
+    }, id);
+  }
+
+  if (data.type === "block") {
+    const x = data.x;
+    const y = data.y;
+
+    if (!validTile(x, y)) return;
+
+    if (data.action === "remove") {
+      delete blocks[`${x},${y}`];
+    } else if (colors[data.block]) {
+      blocks[`${x},${y}`] = data.block;
+    }
+
+    broadcast({
+      type: "block",
+      x: x,
+      y: y,
+      block: blocks[`${x},${y}`] || null
+    });
+  }
+}
+
+function handleGuestData(data) {
+  if (!data || !data.type) return;
+
+  if (data.type === "init") {
+    players = data.players || {};
+    blocks = data.blocks || {};
+
+    players[myId] = {
+      x: 6,
+      y: 7,
+      color: randomColor(),
+      name: "You"
+    };
+
+    setStatus("World loaded! You are playing multiplayer.");
+    sendPosition();
+    updateCount();
+  }
+
+  if (data.type === "players") {
+    players = data.players || {};
+    updateCount();
+  }
+
+  if (data.type === "position") {
+    if (players[data.id]) {
+      players[data.id].x = data.x;
+      players[data.id].y = data.y;
+    }
+  }
+
+  if (data.type === "block") {
+    const key = `${data.x},${data.y}`;
+
+    if (data.block) blocks[key] = data.block;
+    else delete blocks[key];
+  }
+}
+
+function broadcast(data, except = null) {
+  Object.keys(connections).forEach(id => {
+    if (id !== except && connections[id]?.open) {
+      connections[id].send(data);
+    }
+  });
+}
+
+function sendToHost(data) {
+  if (isHost) {
+    handleHostData({
+      peer: "local"
+    }, data);
+  } else {
+    const hostId = Object.keys(connections)[0];
+    const conn = connections[hostId];
+
+    if (conn?.open) conn.send(data);
+  }
+}
+
+function sendPosition() {
+  if (!myId || !players[myId]) return;
+
+  const p = players[myId];
+
+  if (isHost) {
+    broadcast({
+      type: "position",
+      id: myId,
+      x: p.x,
+      y: p.y
+    });
+  } else {
+    sendToHost({
+      type: "position",
+      x: p.x,
+      y: p.y
+    });
+  }
+}
+
+function move(dx, dy) {
+  if (!myId || !players[myId]) return;
+
+  const p = players[myId];
+
+  p.x = clamp(p.x + dx, 0, COLS - 1);
+  p.y = clamp(p.y + dy, 0, ROWS - 1);
+
+  sendPosition();
+}
+
+function validTile(x, y) {
+  return Number.isInteger(x) &&
+         Number.isInteger(y) &&
+         x >= 0 && x < COLS &&
+         y >= 0 && y < ROWS;
+}
+
+function editBlock(x, y, action) {
+  if (!myId || !validTile(x, y)) return;
+
+  // Prevent placing a block on top of a player.
+  if (action === "place") {
+    const occupied = Object.values(players).some(
+      p => Math.floor(p.x) === x && Math.floor(p.y) === y
+    );
+
+    if (occupied) return;
+  }
+
+  if (isHost) {
+    if (action === "remove") {
+      delete blocks[`${x},${y}`];
+    } else {
+      blocks[`${x},${y}`] = selected;
+    }
+
+    broadcast({
+      type: "block",
+      x, y,
+      block: blocks[`${x},${y}`] || null
+    });
+  } else {
+    sendToHost({
+      type: "block",
+      x, y,
+      action,
+      block: selected
+    });
+  }
+}
+
+canvas.addEventListener("click", e => {
+  const rect = canvas.getBoundingClientRect();
+
+  const x = Math.floor(
+    (e.clientX - rect.left) * canvas.width / rect.width / TILE
+  );
+
+  const y = Math.floor(
+    (e.clientY - rect.top) * canvas.height / rect.height / TILE
+  );
+
+  editBlock(x, y, "place");
+});
+
+canvas.addEventListener("contextmenu", e => {
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+
+  const x = Math.floor(
+    (e.clientX - rect.left) * canvas.width / rect.width / TILE
+  );
+
+  const y = Math.floor(
+    (e.clientY - rect.top) * canvas.height / rect.height / TILE
+  );
+
+  editBlock(x, y, "remove");
+});
+
+document.addEventListener("keydown", e => {
+  const key = e.key.toLowerCase();
+
+  const controls = {
+    w: [0,-1],
+    arrowup: [0,-1],
+    s: [0,1],
+    arrowdown: [0,1],
+    a: [-1,0],
+    arrowleft: [-1,0],
+    d: [1,0],
+    arrowright: [1,0]
+  };
+
+  if (controls[key]) {
+    e.preventDefault();
+    move(...controls[key]);
+  }
+});
+
+function randomColor() {
+  const colors = ["#ff5555", "#ffff55", "#55ffff", "#dd66ff", "#ffffff"];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function updateCount() {
+  document.getElementById("count").textContent =
+    "Players: " + Object.keys(players).length;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Sky
+  ctx.fillStyle = "#80c9f0";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Sun
+  ctx.fillStyle = "#fff17a";
+  ctx.beginPath();
+  ctx.arc(710, 65, 30, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Blocks
+  Object.entries(blocks).forEach(([key, type]) => {
+    const [x, y] = key.split(",").map(Number);
+
+    ctx.fillStyle = colors[type] || "#888";
+    ctx.fillRect(x*TILE, y*TILE, TILE, TILE);
+
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.strokeRect(x*TILE, y*TILE, TILE, TILE);
+
+    if (type === "grass") {
+      ctx.fillStyle = "#85df5c";
+      ctx.fillRect(x*TILE, y*TILE, TILE, 5);
+    }
+  });
+
+  // Grid
+  ctx.strokeStyle = "rgba(0,0,0,0.08)";
+
+  for (let x = 0; x <= COLS; x++) {
+    ctx.beginPath();
+    ctx.moveTo(x*TILE, 0);
+    ctx.lineTo(x*TILE, canvas.height);
+    ctx.stroke();
+  }
+
+  for (let y = 0; y <= ROWS; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0, y*TILE);
+    ctx.lineTo(canvas.width, y*TILE);
+    ctx.stroke();
+  }
+
+  // Players
+  Object.entries(players).forEach(([id, p]) => {
+    const x = p.x * TILE;
+    const y = p.y * TILE;
+
+    // Body
+    ctx.fillStyle = p.color || "#ff4040";
+    ctx.fillRect(x + 5, y + 5, 22, 25);
+
+    // Head
+    ctx.fillStyle = "#ffcc99";
+    ctx.fillRect(x + 8, y, 16, 14);
+
+    // Eyes
+    ctx.fillStyle = "#222";
+    ctx.fillRect(x + 11, y + 5, 3, 3);
+    ctx.fillRect(x + 19, y + 5, 3, 3);
+
+    // Name
+    ctx.fillStyle = "white";
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      id === myId ? "YOU" : id.substring(0, 8),
+      x + 16,
+      y - 5
+    );
+  });
+
+  requestAnimationFrame(draw);
+}
+
+makeWorld();
+draw();
+</script>
+
+</body>
+</html>
