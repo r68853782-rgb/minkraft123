@@ -1,624 +1,954 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MiniCraft Multiplayer</title>
-
-<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-
+<title>MiniCraft 3D - Big World</title>
 <style>
-* { box-sizing: border-box; }
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:#fff;font-family:Arial,sans-serif}
+#game{display:block;width:100%;height:100%;touch-action:none}
+#topbar{position:fixed;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;z-index:5}
+.panel{background:#101820c9;border:1px solid #ffffff30;border-radius:10px;padding:9px 12px;backdrop-filter:blur(5px);font-size:13px}
+#help{position:fixed;left:10px;top:64px;max-width:295px;line-height:1.55;z-index:5;pointer-events:none}
+#crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:25px;color:white;text-shadow:0 1px 4px #000;pointer-events:none}
+#hotbar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:6;max-width:96vw}
+.slot{width:58px;height:58px;background:#18232ddd;border:2px solid #ffffff55;border-radius:8px;color:white;font-weight:bold;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;transition:transform 0.1s}
+.slot .swatch{width:25px;height:25px;border:1px solid #ffffff70;margin-bottom:3px;border-radius:3px}
+.slot.active{border:3px solid #ffe36b;transform:translateY(-5px)}
+#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#07111bdc;z-index:10;padding:20px}
+#startCard{max-width:450px;text-align:center;background:#1c2b36;border:1px solid #ffffff30;border-radius:18px;padding:25px;box-shadow:0 20px 70px #0009}
+#start h1{margin-top:0;color:#9cff86}
+button{border:0;border-radius:8px;padding:11px 15px;background:#49a942;color:white;font-weight:bold;cursor:pointer;transition:opacity 0.15s}
+button:hover{opacity:0.92}
+#start button{font-size:17px;margin-top:8px}
+#mobile{display:none;position:fixed;bottom:90px;left:12px;z-index:7;gap:5px}
+#mobile button{width:48px;height:48px;padding:0;background:#243746dd;font-size:18px;border:1px solid #ffffff55;touch-action:none}
+#actions{display:none;position:fixed;bottom:105px;right:12px;z-index:7;flex-direction:column;gap:8px}
+#actions button{background:#243746dd;border:1px solid #ffffff55}
+#toast{position:fixed;top:42%;left:50%;transform:translate(-50%,-50%);background:#111d;padding:9px 14px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:8;font-weight:bold;border:1px solid #ffffff25}
+#combatHud{position:fixed;right:10px;top:64px;z-index:5;display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+#health{color:#ff7777;font-weight:bold}
+#combatToggle{background:#2e8b57}
+#combatToggle.off{background:#666}
+#weaponSelect{background:#365d83;max-width:175px;font-size:11px}
+#fire{background:#b44b43}
+.keyBadge{background:#ffffff22;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;color:#ffe36b}
+@media(max-width:700px){#mobile,#actions{display:flex}#help{font-size:11px;max-width:190px}.slot{width:46px;height:52px}.slot .swatch{width:20px;height:20px}#hotbar{bottom:10px;gap:3px}}
 
-body {
-  margin: 0;
-  background: #151b22;
-  color: white;
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-
-header {
-  padding: 14px;
-  background: #263b29;
-  font-size: 23px;
-  font-weight: bold;
-  color: #8cff83;
-}
-
-.panel {
-  background: #222d38;
-  padding: 12px;
-}
-
-input, button {
-  padding: 11px;
-  margin: 4px;
-  border: 0;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-input {
-  width: 190px;
-  background: #fff;
-}
-
-button {
-  background: #42a843;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-button:active { transform: scale(.96); }
-
-#status {
-  color: #ffdf70;
-  margin: 8px;
-  font-size: 13px;
-}
-
-#myid {
-  color: #7fff8c;
-  font-weight: bold;
-  word-break: break-all;
-}
-
-.game {
-  padding: 10px;
-}
-
-canvas {
-  width: 100%;
-  max-width: 900px;
-  background: #80c9f0;
-  border: 4px solid #526b48;
-  border-radius: 5px;
-  image-rendering: pixelated;
-  touch-action: none;
-}
-
-.controls {
-  margin: 10px auto;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.controls button {
-  min-width: 55px;
-  min-height: 45px;
-  font-size: 19px;
-  background: #465b6d;
-}
-
-.info {
-  color: #c6d5df;
-  font-size: 12px;
-  padding: 10px;
-}
+#multiplayer{position:fixed;left:10px;top:245px;z-index:9;width:250px;background:#101820eF;border:1px solid #ffffff45;border-radius:12px;padding:12px;display:none;box-shadow:0 8px 30px #0008}
+#multiplayer h3{margin:0 0 9px;color:#9cff86}
+#multiplayer input{width:100%;padding:10px;border-radius:7px;border:1px solid #ffffff55;background:#18232d;color:white;margin:5px 0}
+#multiplayer button{margin:4px 2px 4px 0;padding:9px 11px;font-size:12px}
+#roomStatus{font-size:12px;line-height:1.5;color:#d9e8ef;margin-top:7px;overflow-wrap:anywhere}
+#roomCode{font-size:23px;letter-spacing:4px;color:#ffe36b;font-weight:bold}
+#playersCount{font-size:12px;color:#b9c8d1}
+@media(max-width:700px){#multiplayer{top:160px;width:210px;padding:9px}#multiplayer input{padding:8px}}
 </style>
 </head>
-
 <body>
-
-<header>⛏ MINICRAFT MULTIPLAYER</header>
-
-<div class="panel">
-  <div>
-    <button onclick="hostGame()">CREATE WORLD</button>
+<canvas id="game"></canvas>
+<div id="topbar">
+  <div class="panel">⛏️ MINICRAFT 3D</div>
+  <div class="panel" id="coords">X: 0 | Z: 0</div>
+</div>
+<div id="help" class="panel">
+  <b>Keyboard Controls</b><br>
+  <span class="keyBadge">W A S D</span> / Arrows: Move · <span class="keyBadge">Shift</span>: Run<br>
+  <span class="keyBadge">Space</span>: Jump · <span class="keyBadge">1-6</span>: Select Block<br>
+  <span class="keyBadge">C</span>: Combat ON/OFF · <span class="keyBadge">Q</span>/<span class="keyBadge">E</span>: Switch Weapon<br>
+  <span class="keyBadge">F</span> / Left Click: Attack (Combat) or Mine<br>
+  <span class="keyBadge">R</span> / Right Click: Place Block<br>
+  <span id="mobileHint" style="color:#9cff86">Click screen to lock mouse!</span>
+</div>
+<div id="crosshair">+</div>
+<div id="combatHud" class="panel">
+  <span id="health">❤ 100</span>
+  <button id="combatToggle" title="Press C on keyboard">⚔️ COMBAT: ON (C)</button>
+  <button id="weaponSelect" title="Press E on keyboard">⚔️ WOOD SWORD (E)</button>
+</div>
+<div id="hotbar"></div>
+<div id="mobile">
+  <div style="display:grid;grid-template-columns:repeat(3,48px);gap:4px">
+    <span></span><button data-move="forward">▲</button><span></span>
+    <button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button>
   </div>
-
-  <p>YOUR PLAYER ID:</p>
-  <div id="myid">Not Connected</div>
-
-  <hr>
-
-  <input id="room" placeholder="Enter Friend's Player ID">
-  <button onclick="joinGame()">JOIN WORLD</button>
-
-  <div id="status">Create a world or join your friend.</div>
-  <div id="count">Players: 0</div>
+</div>
+<div id="actions">
+  <button id="jump">JUMP</button>
+  <button id="mine">MINE</button>
+  <button id="place">PLACE</button>
+  <button id="fire">⚔️ ATTACK</button>
 </div>
 
-<div class="game">
-  <canvas id="game" width="800" height="500"></canvas>
-
-  <div class="controls">
-    <button onclick="move(0,-1)">⬆</button>
-    <button onclick="move(-1,0)">⬅</button>
-    <button onclick="move(0,1)">⬇</button>
-    <button onclick="move(1,0)">➡</button>
-  </div>
-
-  <div class="controls">
-    <button onclick="selected='grass'">🌱 Grass</button>
-    <button onclick="selected='dirt'">🟫 Dirt</button>
-    <button onclick="selected='stone'">🪨 Stone</button>
-    <button onclick="selected='wood'">🪵 Wood</button>
-  </div>
-
-  <p class="info">
-    PC: WASD / Arrow Keys = Move |
-    Left Click = Place Block |
-    Right Click = Destroy Block
-    <br>
-    Mobile: Use direction buttons and tap blocks.
-  </p>
+<div id="multiplayer">
+  <h3>🌐 MULTIPLAYER</h3>
+  <button id="createRoom">👑 CREATE ROOM</button>
+  <div id="roomCodeWrap" style="display:none">Room Code: <div id="roomCode">------</div></div>
+  <input id="joinCode" maxlength="6" inputmode="numeric" placeholder="Enter 6 digit room code">
+  <button id="joinRoom">JOIN ROOM</button>
+  <button id="leaveRoom" style="background:#a94343;display:none">LEAVE ROOM</button>
+  <div id="roomStatus">Create a room or join your friend's room.</div>
+  <div id="playersCount">Players: 1</div>
 </div>
-
+<div id="toast"></div>
+<div id="start">
+  <div id="startCard">
+    <h1>🌍 MiniCraft 3D</h1>
+    <p>Explore a huge 3D block world, fight zombies with your 3D Sword, and build anything!</p>
+    <p><b>Combat Mode:</b> Always ON by default (Press <b>C</b> to toggle)<br><b>Controls:</b> Fixed WASD + Arrows + Mouse Look</p>
+    <button id="play">PLAY WORLD</button><br><button id="openMultiplayer" style="background:#365d83">🌐 MULTIPLAYER MENU</button>
+    <p style="font-size:12px;color:#b9c8d1">Tip: Click anywhere on the game screen to look around with your mouse.</p>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-const TILE = 32;
-const COLS = 25;
-const ROWS = 15;
-
-let peer = null;
-let connections = {};
-let players = {};
-let blocks = {};
-let myId = null;
-let isHost = false;
-let selected = "grass";
-
-const colors = {
-  grass: "#55ae43",
-  dirt: "#93603c",
-  stone: "#888888",
-  wood: "#9a6734"
-};
-
-function setStatus(msg) {
-  document.getElementById("status").textContent = msg;
+(() => {
+'use strict';
+const canvas=document.getElementById('game');
+if(!window.THREE){
+  document.getElementById('startCard').innerHTML='<h2>3D engine could not load</h2><p>Please check your internet connection and reload.</p>';
+  return;
 }
 
-function makeWorld() {
-  blocks = {};
+// Scene, Camera, and Renderer Setup
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8bcdf2);
+scene.fog=new THREE.Fog(0x8bcdf2,38,115);
 
-  for (let y = 0; y < ROWS; y++) {
-    for (let x = 0; x < COLS; x++) {
-      if (y > 9) blocks[`${x},${y}`] = "dirt";
-      else if (y === 9) blocks[`${x},${y}`] = "grass";
-      else if (Math.random() < 0.035 && y > 2) {
-        blocks[`${x},${y}`] = "wood";
+const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,180);
+camera.rotation.order='YXZ';
+scene.add(camera); // Add camera to scene so held 3D sword renders properly
+
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+
+scene.add(new THREE.HemisphereLight(0xdaf1ff,0x63764c,2.0));
+const sun=new THREE.DirectionalLight(0xfff1d1,2.1);
+sun.position.set(-35,65,25);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-65;sun.shadow.camera.right=65;
+sun.shadow.camera.top=65;sun.shadow.camera.bottom=-65;
+scene.add(sun);
+
+// Block Materials & World Generation
+const materials={
+ grass:new THREE.MeshStandardMaterial({color:0x58ad43,roughness:1}),
+ dirt:new THREE.MeshStandardMaterial({color:0x91613e,roughness:1}),
+ stone:new THREE.MeshStandardMaterial({color:0x888d91,roughness:1}),
+ wood:new THREE.MeshStandardMaterial({color:0x8b592f,roughness:1}),
+ leaves:new THREE.MeshStandardMaterial({color:0x2d873b,roughness:1}),
+ sand:new THREE.MeshStandardMaterial({color:0xd8c27b,roughness:1})
+};
+const blockTypes=['grass','dirt','stone','wood','leaves','sand'];
+const labels=['Grass','Dirt','Stone','Wood','Leaves','Sand'];
+const swatches=['#58ad43','#91613e','#888d91','#8b592f','#2d873b','#d8c27b'];
+let selected='grass';
+
+const world=new Map();
+const key=(x,y,z)=>`${x},${y},${z}`;
+const parse=k=>k.split(',').map(Number);
+const WORLD=100, HALF=WORLD/2;
+
+function hash(x,z){let n=Math.sin(x*127.1+z*311.7)*43758.5453;return n-Math.floor(n);}
+function heightAt(x,z){
+ return Math.floor(5+Math.sin(x*.105)*2.1+Math.cos(z*.09)*1.8+Math.sin((x+z)*.055)*1.8+Math.cos((x-z)*.04)*1.2);
+}
+function addBlock(x,y,z,type){world.set(key(x,y,z),type);}
+function removeBlock(x,y,z){world.delete(key(x,y,z));}
+function getBlock(x,y,z){return world.get(key(x,y,z));}
+
+function generateWorld(){
+ world.clear();
+ for(let x=-HALF;x<HALF;x++)for(let z=-HALF;z<HALF;z++){
+  const h=heightAt(x,z);
+  const beach=Math.abs(h-5)<=0;
+  for(let y=h-3;y<h;y++)addBlock(x,y,z,'dirt');
+  addBlock(x,h,z,beach?'sand':'grass');
+  if(h<4){for(let y=h-1;y>=h-3;y--)addBlock(x,y,z,'sand');}
+  const r=hash(x,z);
+  if(r>.986&&Math.abs(x)>3&&Math.abs(z)>3&&h>4){
+   for(let y=1;y<=3;y++)addBlock(x,h+y,z,'wood');
+   for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=2;dy<=4;dy++){
+    if(Math.abs(dx)+Math.abs(dz)+(dy===4?1:0)<5&&!getBlock(x+dx,h+dy,z+dz))addBlock(x+dx,h+dy,z+dz,'leaves');
+   }
+  }
+ }
+ rebuildMeshes();
+}
+
+const cubeGeo=new THREE.BoxGeometry(1,1,1);
+let instanced={};
+function rebuildMeshes(){
+ Object.values(instanced).forEach(m=>scene.remove(m));
+ instanced={};
+ for(const type of blockTypes){
+  const entries=[];
+  for(const [k,t] of world)if(t===type)entries.push(k);
+  if(!entries.length)continue;
+  const mesh=new THREE.InstancedMesh(cubeGeo,materials[type],entries.length);
+  mesh.castShadow=true;mesh.receiveShadow=true;
+  const dummy=new THREE.Object3D();
+  entries.forEach((k,i)=>{
+    const [x,y,z]=parse(k);
+    dummy.position.set(x+.5,y+.5,z+.5);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i,dummy.matrix);
+  });
+  mesh.instanceMatrix.needsUpdate=true;
+  mesh.userData.keys=entries;
+  scene.add(mesh);
+  instanced[type]=mesh;
+ }
+}
+
+const ground=new THREE.Mesh(
+  new THREE.PlaneGeometry(200,200),
+  new THREE.MeshStandardMaterial({color:0x648b47,roughness:1})
+);
+ground.rotation.x=-Math.PI/2;
+ground.position.y=-4.2;
+ground.receiveShadow=true;
+scene.add(ground);
+
+const sunBall=new THREE.Mesh(
+  new THREE.SphereGeometry(3,20,20),
+  new THREE.MeshBasicMaterial({color:0xffed9a})
+);
+sunBall.position.set(-35,48,-65);
+scene.add(sunBall);
+
+// Player State & Ground Detection
+const player={x:0,y:12,z:0,vy:0,yaw:0,pitch:0,onGround:false};
+function groundHeight(x,z){
+ const ix=Math.floor(x),iz=Math.floor(z);
+ let top=-4;
+ for(let dx=0;dx<=1;dx++)for(let dz=0;dz<=1;dz++){
+  const h=heightAt(ix+dx,iz+dz);
+  top=Math.max(top,h);
+ }
+ return top+1;
+}
+function resetPlayer(){
+  player.x=0;player.z=0;
+  player.y=groundHeight(0,0)+1.7;
+  player.vy=0;
+}
+
+// Reconfigured & Reliable Keyboard + Pointer Lock Controls
+const keysDown=new Set();
+let pointerLocked=false;
+
+function beginPlay(){
+ document.getElementById('start').style.display='none';
+ if(document.activeElement) document.activeElement.blur();
+ window.focus();
+ if(innerWidth>700) canvas.requestPointerLock?.();
+}
+document.getElementById('play').onclick=beginPlay;
+
+canvas.addEventListener('click',()=>{
+ if(document.activeElement) document.activeElement.blur();
+ window.focus();
+ if(innerWidth>700 && !pointerLocked && document.getElementById('start').style.display==='none'){
+  canvas.requestPointerLock?.();
+ }
+});
+
+document.addEventListener('pointerlockchange',()=>{
+ pointerLocked=document.pointerLockElement===canvas;
+ const hint=document.getElementById('mobileHint');
+ if(hint){
+   hint.textContent=pointerLocked?'Mouse locked! Press ESC to unlock.':'Click screen to lock mouse!';
+ }
+});
+
+document.addEventListener('mousemove',e=>{
+ if(pointerLocked){
+  player.yaw-=e.movementX*.0022;
+  player.pitch-=e.movementY*.0022;
+  player.pitch=Math.max(-1.45,Math.min(1.45,player.pitch));
+ }
+});
+
+// Clear keys if window loses focus so player doesn't keep walking
+window.addEventListener('blur',()=>keysDown.clear());
+
+// First-Person 3D Held Weapon (Sword & Bow)
+const weaponHolder=new THREE.Group();
+weaponHolder.position.set(0.42,-0.36,-0.55);
+weaponHolder.rotation.set(0.25,-0.35,0.15);
+camera.add(weaponHolder);
+
+// Build blocky 3D Sword mesh
+const swordGroup=new THREE.Group();
+const handleMat=new THREE.MeshStandardMaterial({color:0x4a2e16,roughness:0.9});
+const guardMat=new THREE.MeshStandardMaterial({color:0x6e4726,roughness:0.8});
+const bladeMat=new THREE.MeshStandardMaterial({color:0x9b6338,roughness:0.35,metalness:0.3});
+
+const pommel=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.07,0.07),guardMat);
+pommel.position.y=-0.16;
+swordGroup.add(pommel);
+
+const hilt=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.16,0.045),handleMat);
+hilt.position.y=-0.06;
+swordGroup.add(hilt);
+
+const crossguard=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.05,0.065),guardMat);
+crossguard.position.y=0.03;
+swordGroup.add(crossguard);
+
+const blade=new THREE.Mesh(new THREE.BoxGeometry(0.085,0.58,0.025),bladeMat);
+blade.position.y=0.33;
+swordGroup.add(blade);
+
+const bladeTip=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.07,0.025),bladeMat);
+bladeTip.position.y=0.64;
+swordGroup.add(bladeTip);
+
+weaponHolder.add(swordGroup);
+
+// Build blocky 3D Bow mesh
+const bowGroup=new THREE.Group();
+const bowWood=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.68,0.06),new THREE.MeshStandardMaterial({color:0x8b592f}));
+const bowTop=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.16,0.05),new THREE.MeshStandardMaterial({color:0x6e4726}));
+bowTop.position.set(0,0.34,0.07);bowTop.rotation.x=-0.5;
+const bowBot=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.16,0.05),new THREE.MeshStandardMaterial({color:0x6e4726}));
+bowBot.position.set(0,-0.34,0.07);bowBot.rotation.x=0.5;
+const bowString=new THREE.Mesh(new THREE.BoxGeometry(0.01,0.72,0.01),new THREE.MeshBasicMaterial({color:0xffffff}));
+bowString.position.z=0.12;
+bowGroup.add(bowWood,bowTop,bowBot,bowString);
+bowGroup.visible=false;
+weaponHolder.add(bowGroup);
+
+let swingProgress=0;
+function triggerSwingAnimation(){
+  swingProgress=1.0;
+}
+
+// Combat & Weapons State (COMBAT ON BY DEFAULT)
+let combatMode=true;
+let weaponIndex=0;
+let health=100;
+const weaponNames=['WOOD SWORD','STONE SWORD','IRON SWORD','DIAMOND SWORD','BOW'];
+const weaponColors=[0x9b6338,0x9aa4ad,0xdce5eb,0x4deeea,0x8bd7ff];
+const weaponDamage=[1.5,2.0,2.5,3.5,2.0];
+const weaponRange=[4.2,4.4,4.6,5.0,30];
+const weaponCooldown=[0.38,0.36,0.32,0.28,0.55];
+let nextAttackTime=0;
+
+function updateWeaponVisuals(){
+  const isBow=weaponIndex===4;
+  swordGroup.visible=!isBow && combatMode;
+  bowGroup.visible=isBow && combatMode;
+  if(!isBow){
+    bladeMat.color.setHex(weaponColors[weaponIndex]);
+    bladeMat.emissive.setHex(weaponIndex===3?0x114455:0x000000);
+  }
+  document.getElementById('weaponSelect').textContent=(isBow?'🏹 ':'⚔️ ')+weaponNames[weaponIndex]+' (E)';
+}
+
+function toggleCombatMode(){
+  combatMode=!combatMode;
+  const btn=document.getElementById('combatToggle');
+  btn.textContent='⚔️ COMBAT: '+(combatMode?'ON (C)':'OFF (C)');
+  btn.classList.toggle('off',!combatMode);
+  updateWeaponVisuals();
+  showToast(combatMode?'⚔️ Combat Mode ON - Sword Ready!':'⛏️ Combat Mode OFF - Build Mode');
+}
+
+function cycleWeapon(dir=1){
+  weaponIndex=(weaponIndex+dir+weaponNames.length)%weaponNames.length;
+  updateWeaponVisuals();
+  showToast('Equipped: '+weaponNames[weaponIndex]);
+}
+
+// Reconfigured Keydown & Keyup Listeners using e.code (Works regardless of CapsLock/Language)
+document.addEventListener('keydown',e=>{
+ // Ignore game hotkeys if typing in Multiplayer room input
+ if(document.activeElement && document.activeElement.tagName==='INPUT') return;
+
+ const code=e.code;
+ keysDown.add(code);
+
+ // Prevent page scroll on Space or Arrow keys
+ if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(code)){
+  e.preventDefault();
+ }
+
+ // Hotbar Block Selection (1-6)
+ if(code.startsWith('Digit')){
+  const num=Number(code.replace('Digit',''));
+  if(num>=1 && num<=6) selectBlock(num-1);
+ }
+
+ // Jump
+ if(code==='Space' && !e.repeat && player.onGround){
+  player.vy=7.4;
+ }
+
+ // Combat Mode Toggle (C)
+ if(code==='KeyC' && !e.repeat){
+  toggleCombatMode();
+ }
+
+ // Weapon Switch (E for next, Q for previous)
+ if(code==='KeyE' && !e.repeat){
+  cycleWeapon(1);
+ }
+ if(code==='KeyQ' && !e.repeat){
+  cycleWeapon(-1);
+ }
+
+ // Attack / Mine with F key
+ if(code==='KeyF' && !e.repeat){
+  if(combatMode) attackWithWeapon();
+  else mineBlock();
+ }
+
+ // Place block with R key
+ if(code==='KeyR' && !e.repeat){
+  placeBlock();
+ }
+});
+
+document.addEventListener('keyup',e=>{
+ keysDown.delete(e.code);
+});
+
+function selectBlock(i){
+ selected=blockTypes[i];
+ document.querySelectorAll('.slot').forEach((s,j)=>s.classList.toggle('active',j===i));
+}
+const hotbar=document.getElementById('hotbar');
+blockTypes.forEach((t,i)=>{
+ const b=document.createElement('button');
+ b.className='slot'+(i===0?' active':'');
+ b.innerHTML=`<span class="swatch" style="background:${swatches[i]}"></span>${i+1} ${labels[i]}`;
+ b.onclick=()=>{selectBlock(i);b.blur();};
+ hotbar.appendChild(b);
+});
+
+const raycaster=new THREE.Raycaster();
+raycaster.far=6;
+
+function targetBlock(){
+ camera.updateMatrixWorld();
+ raycaster.far=6;
+ raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+ const meshes=Object.values(instanced);
+ const hits=raycaster.intersectObjects(meshes,false);
+ if(!hits.length)return null;
+ const hit=hits[0],mesh=hit.object,k=mesh.userData.keys[hit.instanceId];
+ return {hit,key:k,coords:parse(k)};
+}
+
+function mineBlock(){
+ const t=targetBlock();if(!t)return;
+ removeBlock(...t.coords);rebuildMeshes();
+}
+
+function placeBlock(){
+ const t=targetBlock();if(!t||!t.hit.face)return;
+ const n=t.hit.face.normal.clone().transformDirection(t.hit.object.matrixWorld);
+ const [x,y,z]=t.coords;
+ const bx=x+Math.round(n.x),by=y+Math.round(n.y),bz=z+Math.round(n.z);
+ if(getBlock(bx,by,bz))return;
+ if(Math.abs(bx-player.x)<1&&Math.abs(bz-player.z)<1&&Math.abs(by+0.5-player.y)<2)return;
+ addBlock(bx,by,bz,selected);rebuildMeshes();
+}
+
+// Zombies & Sword Combat System
+const zombieList=[];
+const zombieMaterials={
+ skin:new THREE.MeshStandardMaterial({color:0x55a65b,roughness:1}),
+ shirt:new THREE.MeshStandardMaterial({color:0x315f49,roughness:1}),
+ pants:new THREE.MeshStandardMaterial({color:0x39485d,roughness:1}),
+ eye:new THREE.MeshStandardMaterial({color:0x171717})
+};
+
+function makeZombie(x,z){
+ const group=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.BoxGeometry(.75,1.05,.42),zombieMaterials.shirt);
+ body.position.y=1.05;body.castShadow=true;group.add(body);
+ const head=new THREE.Mesh(new THREE.BoxGeometry(.62,.62,.62),zombieMaterials.skin);
+ head.position.y=1.9;head.castShadow=true;group.add(head);
+ for(const ex of [-.16,.16]){
+  const eye=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,.035),zombieMaterials.eye);
+  eye.position.set(ex,1.98,.326);group.add(eye);
+ }
+ for(const sx of [-.52,.52]){
+  const arm=new THREE.Mesh(new THREE.BoxGeometry(.22,.85,.24),zombieMaterials.skin);
+  arm.position.set(sx,1.12,.22);arm.rotation.x=-Math.PI/2.3;arm.castShadow=true;group.add(arm);
+ }
+ for(const lx of [-.2,.2]){
+  const leg=new THREE.Mesh(new THREE.BoxGeometry(.25,.65,.28),zombieMaterials.pants);
+  leg.position.set(lx,.32,0);leg.castShadow=true;group.add(leg);
+ }
+ group.position.set(x,groundHeight(x,z),z);
+ scene.add(group);
+ zombieList.push({
+   group,
+   hp:4,
+   speed:1.15+Math.random()*.45,
+   attackWait:0,
+   phase:Math.random()*6,
+   vx:0,
+   vz:0,
+   hurtTimer:0
+ });
+}
+
+function spawnZombies(count){
+ for(let i=0;i<count;i++){
+  const angle=Math.random()*Math.PI*2;
+  const distance=14+Math.random()*22;
+  const x=THREE.MathUtils.clamp(player.x+Math.cos(angle)*distance,-HALF+3,HALF-3);
+  const z=THREE.MathUtils.clamp(player.z+Math.sin(angle)*distance,-HALF+3,HALF-3);
+  makeZombie(x,z);
+ }
+}
+
+function updateHealth(){
+ document.getElementById('health').textContent='❤ '+Math.max(0,Math.ceil(health));
+}
+
+function attackWithWeapon(){
+  if(!combatMode){
+    showToast('Press C to turn COMBAT ON!');
+    return;
+  }
+  const now=performance.now()/1000;
+  if(now<nextAttackTime) return;
+  nextAttackTime=now+weaponCooldown[weaponIndex];
+
+  // Trigger 3D sword swing animation
+  triggerSwingAnimation();
+
+  const isBow=weaponIndex===4;
+  const maxRange=weaponRange[weaponIndex];
+  raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+  raycaster.far=maxRange;
+
+  let best=null,bestDist=Infinity;
+
+  // Check both raycast box intersection and generous close-range sword slash cone
+  const camDir=new THREE.Vector3();
+  camera.getWorldDirection(camDir);
+
+  for(const z of zombieList){
+    const box=new THREE.Box3().setFromObject(z.group);
+    box.expandByScalar(isBow?0.15:0.45); // Forgiving hitbox for sword swings
+    const hit=raycaster.ray.intersectBox(box,new THREE.Vector3());
+    if(hit){
+      const d=camera.position.distanceTo(hit);
+      if(d<bestDist && d<=maxRange){bestDist=d;best=z;}
+    }else if(!isBow){
+      // Melee cleave check if zombie is right in front of player
+      const zCenter=z.group.position.clone().add(new THREE.Vector3(0,1.2,0));
+      const toZombie=zCenter.sub(camera.position);
+      const dist=toZombie.length();
+      if(dist<=maxRange && camDir.dot(toZombie.normalize())>0.75 && dist<bestDist){
+        bestDist=dist;
+        best=z;
       }
     }
   }
+
+  // Visual slash / arrow trail effect
+  const color=weaponColors[weaponIndex];
+  const start=camera.position.clone().add(new THREE.Vector3(0,-0.15,0));
+  const direction=new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const end=start.clone().add(direction.multiplyScalar(bestDist<Infinity?bestDist:Math.min(maxRange,isBow?22:2.6)));
+  const beamGeo=new THREE.BufferGeometry().setFromPoints([start,end]);
+  const beam=new THREE.Line(beamGeo,new THREE.LineBasicMaterial({color,transparent:true,opacity:0.9}));
+  scene.add(beam);
+  setTimeout(()=>{scene.remove(beam);beam.geometry.dispose();beam.material.dispose();},isBow?180:95);
+
+  if(best){
+    best.hp-=weaponDamage[weaponIndex];
+    best.hurtTimer=0.22;
+
+    // Knockback effect when hit by sword or arrow
+    const pushDir=new THREE.Vector3(
+      best.group.position.x-player.x,
+      0,
+      best.group.position.z-player.z
+    ).normalize();
+    const knockForce=isBow?5.5:8.5;
+    best.vx=pushDir.x*knockForce;
+    best.vz=pushDir.z*knockForce;
+
+    if(best.hp<=0){
+      scene.remove(best.group);
+      const idx=zombieList.indexOf(best);
+      if(idx>=0)zombieList.splice(idx,1);
+      showToast('⚔️ Zombie defeated! +1 Kill');
+    }else{
+      showToast(`${weaponNames[weaponIndex]} Hit! (${Math.ceil(best.hp)} HP left)`);
+    }
+  }
+  raycaster.far=6;
 }
 
-function hostGame() {
-  if (peer) peer.destroy();
+function updateZombies(dt,now){
+ for(const z of [...zombieList]){
+  // Apply knockback velocity
+  if(Math.abs(z.vx)>0.05 || Math.abs(z.vz)>0.05){
+    z.group.position.x=THREE.MathUtils.clamp(z.group.position.x+z.vx*dt,-HALF+2,HALF-2);
+    z.group.position.z=THREE.MathUtils.clamp(z.group.position.z+z.vz*dt,-HALF+2,HALF-2);
+    z.vx*=Math.pow(0.05,dt);
+    z.vz*=Math.pow(0.05,dt);
+  }
 
-  isHost = true;
-  connections = {};
-  players = {};
-  makeWorld();
+  // Flash red briefly when hit
+  if(z.hurtTimer>0){
+    z.hurtTimer-=dt;
+    z.group.scale.set(1.06,0.94,1.06);
+  }else{
+    z.group.scale.set(1,1,1);
+  }
 
-  peer = new Peer();
-
-  peer.on("open", id => {
-    myId = id;
-    players[id] = {
-      x: 5,
-      y: 7,
-      color: "#ff4040",
-      name: "Host"
-    };
-
-    document.getElementById("myid").textContent = id;
-    setStatus("World created! Share your Player ID with friends.");
-    updateCount();
-  });
-
-  peer.on("connection", conn => {
-    connections[conn.peer] = conn;
-
-    conn.on("open", () => {
-      players[conn.peer] = {
-        x: 7,
-        y: 7,
-        color: randomColor(),
-        name: "Player"
-      };
-
-      conn.send({
-        type: "init",
-        players: players,
-        blocks: blocks
-      });
-
-      broadcast({
-        type: "players",
-        players: players
-      }, conn.peer);
-
-      updateCount();
-      setStatus("A new player joined!");
-    });
-
-    conn.on("data", data => handleHostData(conn, data));
-
-    conn.on("close", () => {
-      delete players[conn.peer];
-      delete connections[conn.peer];
-
-      broadcast({
-        type: "players",
-        players: players
-      });
-
-      updateCount();
-    });
-  });
-
-  peer.on("error", err => setStatus("Connection error: " + err.type));
+  const dx=player.x-z.group.position.x,dz=player.z-z.group.position.z;
+  const dist=Math.hypot(dx,dz);
+  if(dist>1.2){
+   const step=Math.min(dist-1.1,z.speed*dt);
+   z.group.position.x+=dx/dist*step;
+   z.group.position.z+=dz/dist*step;
+   z.group.rotation.y=Math.atan2(dx,dz);
+   z.group.position.y=groundHeight(z.group.position.x,z.group.position.z)+Math.abs(Math.sin(now*.007+z.phase))*.08;
+  }else{
+   z.attackWait-=dt;
+   if(z.attackWait<=0){
+    health=Math.max(0,health-7);
+    z.attackWait=1.1;
+    updateHealth();
+    if(health<=0){
+      health=100;
+      resetPlayer();
+      updateHealth();
+      showToast('You respawned!');
+    }else{
+      showToast('Zombie hit you! Swing your sword!');
+    }
+   }
+  }
+ }
 }
 
-function joinGame() {
-  const hostId = document.getElementById("room").value.trim();
+document.getElementById('combatToggle').onclick=(e)=>{toggleCombatMode();e.currentTarget.blur();};
+document.getElementById('weaponSelect').onclick=(e)=>{cycleWeapon(1);e.currentTarget.blur();};
+document.getElementById('fire').onclick=(e)=>{attackWithWeapon();e.currentTarget.blur();};
 
-  if (!hostId) {
-    setStatus("Please enter a Player ID.");
+updateWeaponVisuals();
+spawnZombies(10);
+
+canvas.addEventListener('mousedown',e=>{
+ if(document.getElementById('start').style.display!=='none') return;
+ if(e.button===0){
+   if(combatMode) attackWithWeapon();
+   else mineBlock();
+ }
+ if(e.button===2) placeBlock();
+});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+document.getElementById('mine').onclick=()=>{if(combatMode)attackWithWeapon();else mineBlock();};
+document.getElementById('place').onclick=placeBlock;
+document.getElementById('jump').onclick=()=>{if(player.onGround)player.vy=7.4;};
+
+let mobileMove={};
+document.querySelectorAll('[data-move]').forEach(b=>{
+ const dir=b.dataset.move;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();mobileMove[dir]=true;b.setPointerCapture(e.pointerId);});
+ ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>mobileMove[dir]=false));
+});
+
+function updatePlayer(dt,now){
+ // Check both e.code (KeyW/KeyS/KeyA/KeyD) and Arrow keys
+ const isForward=keysDown.has('KeyW')||keysDown.has('ArrowUp')||mobileMove.forward;
+ const isBack=keysDown.has('KeyS')||keysDown.has('ArrowDown')||mobileMove.back;
+ const isRight=keysDown.has('KeyD')||keysDown.has('ArrowRight')||mobileMove.right;
+ const isLeft=keysDown.has('KeyA')||keysDown.has('ArrowLeft')||mobileMove.left;
+ const isSprint=keysDown.has('ShiftLeft')||keysDown.has('ShiftRight');
+
+ const forward=(isForward?1:0)-(isBack?1:0);
+ const side=(isRight?1:0)-(isLeft?1:0);
+
+ // Normalize diagonal movement so moving diagonally isn't faster
+ let moveF=forward, moveS=side;
+ const mag=Math.hypot(moveF,moveS);
+ if(mag>1){moveF/=mag;moveS/=mag;}
+
+ const speed=isSprint?8.5:5.4;
+ const dx=(-Math.sin(player.yaw)*moveF+Math.cos(player.yaw)*moveS)*speed*dt;
+ const dz=(-Math.cos(player.yaw)*moveF-Math.sin(player.yaw)*moveS)*speed*dt;
+
+ const nx=THREE.MathUtils.clamp(player.x+dx,-HALF+1,HALF-1);
+ const nz=THREE.MathUtils.clamp(player.z+dz,-HALF+1,HALF-1);
+ const floor=groundHeight(nx,nz)+1.7;
+
+ if(player.y<=floor+.08&&player.vy<=0){
+   player.y=floor;player.vy=0;player.onGround=true;
+ }else{
+   player.onGround=false;
+   player.vy-=19*dt;
+   player.y+=player.vy*dt;
+   if(player.y<floor){player.y=floor;player.vy=0;player.onGround=true;}
+ }
+
+ player.x=nx;player.z=nz;
+ camera.position.set(player.x,player.y,player.z);
+ camera.rotation.set(player.pitch,player.yaw,0,'YXZ');
+
+ // Animate held 3D Sword (idle bob + attack slash)
+ const walking=mag>0?1:0;
+ const bobX=Math.cos(now*0.008)*0.015*walking;
+ const bobY=Math.abs(Math.sin(now*0.008))*0.018*walking;
+
+ if(swingProgress>0){
+   swingProgress=Math.max(0,swingProgress-dt*4.5);
+   const slash=Math.sin(swingProgress*Math.PI);
+   weaponHolder.position.set(0.42-slash*0.28,-0.36-slash*0.12,-0.55-slash*0.2);
+   weaponHolder.rotation.set(0.25+slash*1.35,-0.35+slash*0.85,0.15+slash*0.6);
+ }else{
+   weaponHolder.position.set(0.42+bobX,-0.36-bobY,-0.55);
+   weaponHolder.rotation.set(0.25,-0.35,0.15);
+ }
+
+ document.getElementById('coords').textContent=`X: ${Math.round(player.x)} | Z: ${Math.round(player.z)}`;
+}
+
+let last=performance.now();
+let spawnClock=0;
+function animate(now){
+ requestAnimationFrame(animate);
+ const dt=Math.min((now-last)/1000,.04);last=now;
+ updatePlayer(dt,now);
+ updateZombies(dt,now);
+ spawnClock+=dt;
+ if(spawnClock>10&&zombieList.length<10){
+   spawnZombies(Math.min(2,10-zombieList.length));
+   spawnClock=0;
+ }
+ renderer.render(scene,camera);
+}
+
+generateWorld();
+resetPlayer();
+requestAnimationFrame(animate);
+
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+});
+
+const toast=document.getElementById('toast');
+let toastTimer=null;
+function showToast(msg){
+ toast.textContent=msg;
+ toast.style.opacity=1;
+ clearTimeout(toastTimer);
+ toastTimer=setTimeout(()=>toast.style.opacity=0,1300);
+}
+
+// ---------------- PeerJS multiplayer ----------------
+const mpPanel=document.getElementById('multiplayer');
+const mpStatus=document.getElementById('roomStatus');
+const roomCodeBox=document.getElementById('roomCode');
+const roomCodeWrap=document.getElementById('roomCodeWrap');
+const leaveRoomBtn=document.getElementById('leaveRoom');
+let peer=null, isRoomHost=false, roomCode=null, hostConnection=null;
+const connections=new Map();
+const remotePlayers=new Map();
+
+function setMpStatus(message){mpStatus.textContent=message;}
+function updatePlayerCount(){document.getElementById('playersCount').textContent='Players: '+(1+remotePlayers.size);}
+function sendToConnection(conn,data){try{if(conn&&conn.open)conn.send(data);}catch(e){console.warn('Network send failed',e);}}
+function broadcast(data,except=null){
+  if(isRoomHost){
+    for(const conn of connections.values())if(conn!==except)sendToConnection(conn,data);
+  }else sendToConnection(hostConnection,data);
+}
+function createRemotePlayer(id){
+  if(remotePlayers.has(id))return remotePlayers.get(id);
+  const group=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.65,1.1,.4),new THREE.MeshStandardMaterial({color:0x3978d8,roughness:.8}));
+  body.position.y=.95;body.castShadow=true;group.add(body);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.48,.48,.48),new THREE.MeshStandardMaterial({color:0xffc58b}));
+  head.position.y=1.72;head.castShadow=true;group.add(head);
+  const marker=new THREE.Mesh(new THREE.BoxGeometry(.75,.08,.08),new THREE.MeshBasicMaterial({color:0xffe36b}));
+  marker.position.y=2.1;group.add(marker);
+  scene.add(group);
+  const item={group,x:0,y:0,z:0};
+  remotePlayers.set(id,item);updatePlayerCount();return item;
+}
+function removeRemotePlayer(id){
+  const item=remotePlayers.get(id);if(!item)return;
+  scene.remove(item.group);
+  item.group.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+  remotePlayers.delete(id);updatePlayerCount();
+}
+function processNetworkMessage(data,source){
+  if(!data||typeof data!=='object')return;
+  if(data.type==='welcome'){
+    if(data.blocks&&Array.isArray(data.blocks)){
+      world.clear();
+      for(const b of data.blocks)if(Array.isArray(b)&&b.length===4)world.set(key(b[0],b[1],b[2]),b[3]);
+      rebuildMeshes();
+    }
+    if(data.players)for(const p of data.players){
+      if(p.id!==peer.id){const rp=createRemotePlayer(p.id);rp.group.position.set(p.x,p.y-1.7,p.z);}
+    }
+    setMpStatus('Connected! You are in the same world.');
     return;
   }
-
-  if (peer) peer.destroy();
-
-  isHost = false;
-  connections = {};
-  players = {};
-
-  peer = new Peer();
-
-  peer.on("open", id => {
-    myId = id;
-    document.getElementById("myid").textContent = id;
-
-    const conn = peer.connect(hostId, {
-      reliable: true
-    });
-
-    connections[hostId] = conn;
-
-    conn.on("open", () => {
-      setStatus("Connected! Loading world...");
-    });
-
-    conn.on("data", data => handleGuestData(data));
-
-    conn.on("close", () => {
-      setStatus("Disconnected from host.");
-    });
-  });
-
-  peer.on("error", err => {
-    setStatus("Connection error: " + err.type);
-  });
-}
-
-function handleHostData(conn, data) {
-  if (!data || !data.type) return;
-
-  if (data.type === "position") {
-    const id = conn.peer;
-
-    if (!players[id]) return;
-
-    players[id].x = clamp(data.x, 0, COLS - 1);
-    players[id].y = clamp(data.y, 0, ROWS - 1);
-
-    broadcast({
-      type: "position",
-      id: id,
-      x: players[id].x,
-      y: players[id].y
-    }, id);
-  }
-
-  if (data.type === "block") {
-    const x = data.x;
-    const y = data.y;
-
-    if (!validTile(x, y)) return;
-
-    if (data.action === "remove") {
-      delete blocks[`${x},${y}`];
-    } else if (colors[data.block]) {
-      blocks[`${x},${y}`] = data.block;
+  if(data.type==='position'){
+    if(data.id!==peer?.id){
+      const rp=createRemotePlayer(data.id);
+      rp.group.position.set(data.x,data.y-1.7,data.z);
+      rp.group.rotation.y=data.yaw||0;
     }
-
-    broadcast({
-      type: "block",
-      x: x,
-      y: y,
-      block: blocks[`${x},${y}`] || null
-    });
+  }else if(data.type==='block'){
+    const k=key(data.x,data.y,data.z);
+    if(data.action==='remove')world.delete(k);else world.set(k,data.block);
+    rebuildMeshes();
+  }else if(data.type==='player-left'){
+    removeRemotePlayer(data.id);
   }
+  if(isRoomHost)broadcast(data,source);
 }
-
-function handleGuestData(data) {
-  if (!data || !data.type) return;
-
-  if (data.type === "init") {
-    players = data.players || {};
-    blocks = data.blocks || {};
-
-    players[myId] = {
-      x: 6,
-      y: 7,
-      color: randomColor(),
-      name: "You"
-    };
-
-    setStatus("World loaded! You are playing multiplayer.");
-    sendPosition();
-    updateCount();
-  }
-
-  if (data.type === "players") {
-    players = data.players || {};
-    updateCount();
-  }
-
-  if (data.type === "position") {
-    if (players[data.id]) {
-      players[data.id].x = data.x;
-      players[data.id].y = data.y;
-    }
-  }
-
-  if (data.type === "block") {
-    const key = `${data.x},${data.y}`;
-
-    if (data.block) blocks[key] = data.block;
-    else delete blocks[key];
-  }
-}
-
-function broadcast(data, except = null) {
-  Object.keys(connections).forEach(id => {
-    if (id !== except && connections[id]?.open) {
-      connections[id].send(data);
+function setupConnection(conn){
+  connections.set(conn.peer,conn);
+  conn.on('data',data=>handleNetworkMessage(data,conn));
+  conn.on('close',()=>{
+    connections.delete(conn.peer);removeRemotePlayer(conn.peer);
+    broadcast({type:'player-left',id:conn.peer},conn);
+    setMpStatus('A player left the room.');
+  });
+  conn.on('error',e=>console.warn('Peer connection error',e));
+  conn.on('open',()=>{
+    createRemotePlayer(conn.peer);
+    if(isRoomHost){
+      sendToConnection(conn,{
+        type:'welcome',
+        blocks:Array.from(world.entries()).map(([k,v])=>[...parse(k),v]),
+        players:[{id:peer.id,x:player.x,y:player.y,z:player.z},...Array.from(remotePlayers.entries()).map(([id,p])=>({id,x:p.group.position.x,y:p.group.position.y+1.7,z:p.group.position.z}))]
+      });
+      setMpStatus('Friend joined! Share code '+roomCode);
     }
   });
 }
-
-function sendToHost(data) {
-  if (isHost) {
-    handleHostData({
-      peer: "local"
-    }, data);
-  } else {
-    const hostId = Object.keys(connections)[0];
-    const conn = connections[hostId];
-
-    if (conn?.open) conn.send(data);
-  }
+function cleanupMultiplayer(){
+  if(hostConnection){try{hostConnection.close();}catch(e){}hostConnection=null;}
+  for(const c of connections.values()){try{c.close();}catch(e){}}
+  connections.clear();
+  for(const id of [...remotePlayers.keys()])removeRemotePlayer(id);
+  if(peer){try{peer.destroy();}catch(e){}peer=null;}
+  isRoomHost=false;roomCode=null;
+  roomCodeWrap.style.display='none';leaveRoomBtn.style.display='none';
+  document.getElementById('createRoom').disabled=false;
+  setMpStatus('Disconnected. Create or join a room.');
+  updatePlayerCount();
 }
-
-function sendPosition() {
-  if (!myId || !players[myId]) return;
-
-  const p = players[myId];
-
-  if (isHost) {
-    broadcast({
-      type: "position",
-      id: myId,
-      x: p.x,
-      y: p.y
+document.getElementById('openMultiplayer').onclick=()=>{
+  mpPanel.style.display='block';
+  document.getElementById('start').style.display='none';
+};
+document.getElementById('createRoom').onclick=()=>{
+  if(!window.Peer){setMpStatus('PeerJS could not load. Check your internet.');return;}
+  cleanupMultiplayer();
+  document.getElementById('createRoom').disabled=true;
+  setMpStatus('Creating room...');
+  let attempts=0;
+  const tryCreate=()=>{
+    roomCode=String(Math.floor(100000+Math.random()*900000));
+    peer=new Peer(roomCode,{debug:1});
+    peer.on('open',id=>{
+      isRoomHost=true;roomCode=id;
+      roomCodeBox.textContent=id;roomCodeWrap.style.display='block';
+      leaveRoomBtn.style.display='inline-block';
+      setMpStatus('Room ready! Send this code to your friends.');
+      showToast('Room created: '+id);
     });
-  } else {
-    sendToHost({
-      type: "position",
-      x: p.x,
-      y: p.y
+    peer.on('connection',conn=>setupConnection(conn));
+    peer.on('error',err=>{
+      if(err.type==='unavailable-id'&&attempts++<5){try{peer.destroy();}catch(e){}peer=null;tryCreate();}
+      else{setMpStatus('Could not create room: '+err.type+'. Try again.');document.getElementById('createRoom').disabled=false;}
     });
-  }
-}
-
-function move(dx, dy) {
-  if (!myId || !players[myId]) return;
-
-  const p = players[myId];
-
-  p.x = clamp(p.x + dx, 0, COLS - 1);
-  p.y = clamp(p.y + dy, 0, ROWS - 1);
-
-  sendPosition();
-}
-
-function validTile(x, y) {
-  return Number.isInteger(x) &&
-         Number.isInteger(y) &&
-         x >= 0 && x < COLS &&
-         y >= 0 && y < ROWS;
-}
-
-function editBlock(x, y, action) {
-  if (!myId || !validTile(x, y)) return;
-
-  // Prevent placing a block on top of a player.
-  if (action === "place") {
-    const occupied = Object.values(players).some(
-      p => Math.floor(p.x) === x && Math.floor(p.y) === y
-    );
-
-    if (occupied) return;
-  }
-
-  if (isHost) {
-    if (action === "remove") {
-      delete blocks[`${x},${y}`];
-    } else {
-      blocks[`${x},${y}`] = selected;
-    }
-
-    broadcast({
-      type: "block",
-      x, y,
-      block: blocks[`${x},${y}`] || null
-    });
-  } else {
-    sendToHost({
-      type: "block",
-      x, y,
-      action,
-      block: selected
-    });
-  }
-}
-
-canvas.addEventListener("click", e => {
-  const rect = canvas.getBoundingClientRect();
-
-  const x = Math.floor(
-    (e.clientX - rect.left) * canvas.width / rect.width / TILE
-  );
-
-  const y = Math.floor(
-    (e.clientY - rect.top) * canvas.height / rect.height / TILE
-  );
-
-  editBlock(x, y, "place");
-});
-
-canvas.addEventListener("contextmenu", e => {
-  e.preventDefault();
-
-  const rect = canvas.getBoundingClientRect();
-
-  const x = Math.floor(
-    (e.clientX - rect.left) * canvas.width / rect.width / TILE
-  );
-
-  const y = Math.floor(
-    (e.clientY - rect.top) * canvas.height / rect.height / TILE
-  );
-
-  editBlock(x, y, "remove");
-});
-
-document.addEventListener("keydown", e => {
-  const key = e.key.toLowerCase();
-
-  const controls = {
-    w: [0,-1],
-    arrowup: [0,-1],
-    s: [0,1],
-    arrowdown: [0,1],
-    a: [-1,0],
-    arrowleft: [-1,0],
-    d: [1,0],
-    arrowright: [1,0]
   };
-
-  if (controls[key]) {
-    e.preventDefault();
-    move(...controls[key]);
-  }
-});
-
-function randomColor() {
-  const colors = ["#ff5555", "#ffff55", "#55ffff", "#dd66ff", "#ffffff"];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function updateCount() {
-  document.getElementById("count").textContent =
-    "Players: " + Object.keys(players).length;
-}
-
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Sky
-  ctx.fillStyle = "#80c9f0";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Sun
-  ctx.fillStyle = "#fff17a";
-  ctx.beginPath();
-  ctx.arc(710, 65, 30, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Blocks
-  Object.entries(blocks).forEach(([key, type]) => {
-    const [x, y] = key.split(",").map(Number);
-
-    ctx.fillStyle = colors[type] || "#888";
-    ctx.fillRect(x*TILE, y*TILE, TILE, TILE);
-
-    ctx.strokeStyle = "rgba(0,0,0,0.15)";
-    ctx.strokeRect(x*TILE, y*TILE, TILE, TILE);
-
-    if (type === "grass") {
-      ctx.fillStyle = "#85df5c";
-      ctx.fillRect(x*TILE, y*TILE, TILE, 5);
-    }
+  tryCreate();
+};
+document.getElementById('joinRoom').onclick=()=>{
+  const code=document.getElementById('joinCode').value.trim();
+  if(!/^\d{6}$/.test(code)){setMpStatus('Please enter a valid 6-digit room code.');return;}
+  if(!window.Peer){setMpStatus('PeerJS could not load. Check your internet.');return;}
+  cleanupMultiplayer();
+  setMpStatus('Connecting to room '+code+'...');
+  peer=new Peer(undefined,{debug:1});
+  peer.on('open',()=>{
+    hostConnection=peer.connect(code,{reliable:true});
+    hostConnection.on('open',()=>{
+      leaveRoomBtn.style.display='inline-block';
+      setMpStatus('Connected. Loading shared world...');
+      sendToConnection(hostConnection,{type:'request-welcome'});
+    });
+    hostConnection.on('data',data=>handleNetworkMessage(data,hostConnection));
+    hostConnection.on('close',()=>{setMpStatus('Host disconnected.');cleanupMultiplayer();});
+    hostConnection.on('error',e=>setMpStatus('Connection error: '+e.type));
   });
+  peer.on('error',err=>setMpStatus('Could not join: '+err.type+'. Check the code and try again.'));
+};
+document.getElementById('leaveRoom').onclick=()=>{cleanupMultiplayer();showToast('You left the room.');};
 
-  // Grid
-  ctx.strokeStyle = "rgba(0,0,0,0.08)";
-
-  for (let x = 0; x <= COLS; x++) {
-    ctx.beginPath();
-    ctx.moveTo(x*TILE, 0);
-    ctx.lineTo(x*TILE, canvas.height);
-    ctx.stroke();
+function handleNetworkMessage(data,source){
+  if(data&&data.type==='request-welcome'&&isRoomHost){
+    sendToConnection(source,{
+      type:'welcome',
+      blocks:Array.from(world.entries()).map(([k,v])=>[...parse(k),v]),
+      players:[{id:peer.id,x:player.x,y:player.y,z:player.z},...Array.from(remotePlayers.entries()).map(([id,p])=>({id,x:p.group.position.x,y:p.group.position.y+1.7,z:p.group.position.z}))]
+    });
+    return;
   }
-
-  for (let y = 0; y <= ROWS; y++) {
-    ctx.beginPath();
-    ctx.moveTo(0, y*TILE);
-    ctx.lineTo(canvas.width, y*TILE);
-    ctx.stroke();
-  }
-
-  // Players
-  Object.entries(players).forEach(([id, p]) => {
-    const x = p.x * TILE;
-    const y = p.y * TILE;
-
-    // Body
-    ctx.fillStyle = p.color || "#ff4040";
-    ctx.fillRect(x + 5, y + 5, 22, 25);
-
-    // Head
-    ctx.fillStyle = "#ffcc99";
-    ctx.fillRect(x + 8, y, 16, 14);
-
-    // Eyes
-    ctx.fillStyle = "#222";
-    ctx.fillRect(x + 11, y + 5, 3, 3);
-    ctx.fillRect(x + 19, y + 5, 3, 3);
-
-    // Name
-    ctx.fillStyle = "white";
-    ctx.font = "bold 11px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(
-      id === myId ? "YOU" : id.substring(0, 8),
-      x + 16,
-      y - 5
-    );
-  });
-
-  requestAnimationFrame(draw);
+  processNetworkMessage(data,source);
 }
 
-makeWorld();
-draw();
+const originalMineBlock=mineBlock;
+mineBlock=function(){
+  const t=targetBlock();if(!t)return;
+  const [x,y,z]=t.coords;
+  removeBlock(x,y,z);rebuildMeshes();
+  if(peer&&peer.open)broadcast({type:'block',action:'remove',x,y,z});
+};
+const originalPlaceBlock=placeBlock;
+placeBlock=function(){
+  const t=targetBlock();if(!t||!t.hit.face)return;
+  const n=t.hit.face.normal.clone().transformDirection(t.hit.object.matrixWorld);
+  const [x,y,z]=t.coords;
+  const bx=x+Math.round(n.x),by=y+Math.round(n.y),bz=z+Math.round(n.z);
+  if(getBlock(bx,by,bz))return;
+  if(Math.abs(bx-player.x)<1&&Math.abs(bz-player.z)<1&&Math.abs(by+0.5-player.y)<2)return;
+  addBlock(bx,by,bz,selected);rebuildMeshes();
+  if(peer&&peer.open)broadcast({type:'block',action:'place',x:bx,y:by,z:bz,block:selected});
+};
+
+setInterval(()=>{
+  if(peer&&peer.open){
+    broadcast({type:'position',id:peer.id,x:player.x,y:player.y,z:player.z,yaw:player.yaw});
+  }
+},100);
+
+showToast('⚔️ Combat ON! Use WASD to move & Click/F to swing Sword!');
+})();
 </script>
-
 </body>
 </html>
